@@ -11,3 +11,5 @@ defaults `--temp 1.0 --top-p 0.95 --top-k 20`. Measured on the cards named in `.
 | 12GB | `12gb.sh` | 262144 | 11.7 GB | the full native window fits, 0.6 GB spare |
 | 12GB + MTP head | `12gb-mtp.sh` | 131072 | 10.6 GB | needs the merged file from `../graft/`; lossless with `GGML_CUDA_BATCH_INVARIANT=1` on the fork branch |
 | 16GB + vision | `16gb-vision.sh` | 131072 | pending | adds `--mmproj`; row pending |
+
+Prebuilt Linux bundle (sm_86 + sm_89, driver only, the `bonsai2` branch): on the Hugging Face repo next to the merged files, README copy in `prebuilt_README.md`. The #215 / #214 / #218 a/b on the 3060: `../kernel/ab/ab_215_214_rtx3060.md`.

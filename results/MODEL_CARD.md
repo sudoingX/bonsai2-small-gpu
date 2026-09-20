@@ -61,11 +61,13 @@ With `GGML_CUDA_BATCH_INVARIANT=1` on the kernel branch, greedy output (temperat
 | file | bytes | needs |
 | --- | ---: | --- |
 | `Ternary-Bonsai-2-27B-PTQ1_0-mtp.gguf`, **the file** | 7,012,820,512 | the PrismML fork, prism-b10685 or later, as released. Carries its own unrotated copy of the token embedding for the head, so `--spec-type draft-mtp` starts without any patch. For the speed above, the kernel branch. |
-| `bonsai2-small-gpu-linux-x64-cuda12.4-sm86-sm89-8971d7b.tar.gz` | (READY.md) | nothing but the NVIDIA driver. `llama-server`, `llama-bench`, `llama-cli` built from the `bonsai2` branch (kernel + Hadamard fix), CUDA runtime bundled, serve scripts for 8GB, 12GB and 12GB with the head. Ampere and Ada; Blackwell builds from source. |
+| `bonsai2-small-gpu-linux-x64-cuda12.4-sm86-sm89-8971d7b.tar.gz` | 515,425,982 | nothing but the NVIDIA driver. `llama-server`, `llama-bench`, `llama-cli` built from the `bonsai2` branch (kernel + Hadamard fix), CUDA runtime bundled, serve scripts for 8GB, 12GB and 12GB with the head. Ampere and Ada; Blackwell builds from source. |
 
 Smaller variant, optional: `Ternary-Bonsai-2-27B-PTQ1_0-mtp-lean.gguf`, 6,297,658,848 bytes, the same graft without the embedding copy, 715 MB smaller (on a 12GB card that is 196K of context instead of 163K). Same output. It needs the 15-line qwen35 MTP Hadamard fix in the build (PrismML-Eng/llama.cpp#217 or #205, or the `bonsai2` branch above); the release binary refuses to start the draft graph on it. Once that fix ships in a PrismML release this becomes the default file.
 
-SHA256SUMS in the repo. Parents:
+`SHA256SUMS` in the repo covers all four files; the tarball carries its own `SHA256SUMS` for its 25 files. Tarball facts: NVIDIA driver 525 or newer, glibc 2.35 or newer, AVX2; extracted and run from a clean directory with no toolchain in the environment, identity byte-identical, 49.3 tok/s median; the lean file on the same binaries loads at 9,940 MiB at 131072 and 11,732 MiB at 196608, the fat file does not fit 196608 on 12 GB (the MTP compute buffer needs 1,040 MiB more).
+
+Parents:
 
 - PrismML `Ternary-Bonsai-2-27B-PTQ1_0.gguf`, 5,946,648,928 bytes, sha256 `53107f530aa52eb00912263ab1ee29bd199261c87cd7b4ad4ca1318c1fe33ee3`. Every one of its 851 tensors is present with identical bytes and offsets; `tools/merge.py --strip` on the merged file reproduces this sha256.
 - unsloth `Qwen3.8-27B-UD-Q4_K_M.gguf`, 16,464,440,224 bytes, sha256 `322e194ff79741c7baa497c240f677f54b201b0efab44ca8e50f122b39123482`. Source of the 15 `blk.64.*` tensors (Q6_K, Q8_0, F32, 335 MiB) and, in the fat file, of `blk.64.nextn.embed_tokens.weight` (a Q4_K copy of its token_embd, 682 MiB).
