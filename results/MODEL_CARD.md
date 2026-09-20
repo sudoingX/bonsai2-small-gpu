@@ -22,6 +22,19 @@ The 1.75 bpw PTQ1_0 build of Ternary Bonsai 2 27B (PrismML's ternary compression
 
 Three Bonsai 2 MTP grafts already exist, all on the PQ2_0 file (7.21 GB): [ProCreations](https://huggingface.co/ProCreations/Ternary-Bonsai-2-27B-MTP), [decent-jawfish](https://huggingface.co/decent-jawfish/bonsai-2-27b-mtp), [BoldingBuilds](https://huggingface.co/BoldingBuilds/Ternary-Bonsai-2-27B-Abliterated-PQ2_0-MTP-GGUF). BoldingBuilds also tried PTQ1_0 and measured +1.6%: the head drafts fine, the verification does not pay, because on the 1.75 bpw kernels a 3-token batch cost about 3x a single token. This repo is that graft, and [PrismML-Eng/llama.cpp#218](https://github.com/PrismML-Eng/llama.cpp/pull/218) is the kernel that removes the wall: on an RTX 3060 12GB a 3-token verify now costs 1.55x a single token instead of 2.28x, and single-token decode itself goes from 26 to 40 tok/s.
 
+## Download and run
+
+One file: `Ternary-Bonsai-2-27B-PTQ1_0-mtp.gguf` (7.0 GB). It runs on the PrismML fork release binary as shipped, no patch, and it runs faster on the kernel branch. Every number below is this file.
+
+```
+hf download sudoingx/Ternary-Bonsai-2-27B-PTQ1_0-MTP-GGUF Ternary-Bonsai-2-27B-PTQ1_0-mtp.gguf --local-dir .
+git clone -b bonsai2 https://github.com/sudoingX/llama.cpp && cmake -S llama.cpp -B build -DGGML_CUDA=ON && cmake --build build -j
+GGML_CUDA_BATCH_INVARIANT=1 build/bin/llama-server -m Ternary-Bonsai-2-27B-PTQ1_0-mtp.gguf \
+  -ngl 99 -fa on -c 131072 -np 1 -ctk q4_0 -ctv q4_0 --jinja --spec-type draft-mtp --spec-draft-n-max 1
+```
+
+No compiler: extract the prebuilt tarball from this repo (Ampere and Ada, driver only) and run `serve-12gb-mtp.sh`. On the stock PrismML release binary the same serve line works without the env var, at the +8% row below.
+
 ## Numbers
 
 RTX 3060 12GB, one slot, thinking off, 131072 context, q4_0 K/V, client-measured tok/s (`probe.py` in the [repo](https://github.com/sudoingX/bonsai2-small-gpu), 3 prompts x 3 runs, medians), this fat file:
@@ -47,9 +60,10 @@ With `GGML_CUDA_BATCH_INVARIANT=1` on the kernel branch, greedy output (temperat
 
 | file | bytes | needs |
 | --- | ---: | --- |
-| `Ternary-Bonsai-2-27B-PTQ1_0-mtp.gguf` (fat) | 7,012,820,512 | the PrismML fork, prism-b10685 or later, as released. Carries its own unrotated copy of the token embedding for the head, so `--spec-type draft-mtp` starts without any patch. For the speed above, the kernel branch. |
-| `Ternary-Bonsai-2-27B-PTQ1_0-mtp-lean.gguf` | 6,297,658,848 | the fork with the 15-line qwen35 MTP Hadamard fix (#217, #205, or the `bonsai2` branch below). 715 MB smaller, same output. |
+| `Ternary-Bonsai-2-27B-PTQ1_0-mtp.gguf`, **the file** | 7,012,820,512 | the PrismML fork, prism-b10685 or later, as released. Carries its own unrotated copy of the token embedding for the head, so `--spec-type draft-mtp` starts without any patch. For the speed above, the kernel branch. |
 | `bonsai2-small-gpu-linux-x64-cuda12.4-sm86-sm89-8971d7b.tar.gz` | (READY.md) | nothing but the NVIDIA driver. `llama-server`, `llama-bench`, `llama-cli` built from the `bonsai2` branch (kernel + Hadamard fix), CUDA runtime bundled, serve scripts for 8GB, 12GB and 12GB with the head. Ampere and Ada; Blackwell builds from source. |
+
+Smaller variant, optional: `Ternary-Bonsai-2-27B-PTQ1_0-mtp-lean.gguf`, 6,297,658,848 bytes, the same graft without the embedding copy, 715 MB smaller (on a 12GB card that is 196K of context instead of 163K). Same output. It needs the 15-line qwen35 MTP Hadamard fix in the build (PrismML-Eng/llama.cpp#217 or #205, or the `bonsai2` branch above); the release binary refuses to start the draft graph on it. Once that fix ships in a PrismML release this becomes the default file.
 
 SHA256SUMS in the repo. Parents:
 
@@ -58,19 +72,7 @@ SHA256SUMS in the repo. Parents:
 
 Header changes versus Bonsai 2: `qwen35.block_count` 64 → 65, `qwen35.nextn_predict_layers = 1`, plus `graft.donor.name`, `graft.head_blocks`, `graft.head_tensor_count`, `graft.tool` for provenance. Everything else, the `prism.hadamard.*` keys and the tokenizer included, is byte-identical. Without `--spec-type draft-mtp` the file behaves exactly like Bonsai 2, the head is skipped.
 
-## Serving
-
-Fast path, the kernel branch (builds for sm_86 through sm_120):
-
-```
-git clone -b bonsai2 https://github.com/sudoingX/llama.cpp && cd llama.cpp
-cmake -B build -DGGML_CUDA=ON && cmake --build build -j
-GGML_CUDA_BATCH_INVARIANT=1 build/bin/llama-server -m Ternary-Bonsai-2-27B-PTQ1_0-mtp.gguf \
-  -ngl 99 -fa on -c 131072 -np 1 -ctk q4_0 -ctv q4_0 --jinja \
-  --spec-type draft-mtp --spec-draft-n-max 1
-```
-
-Or extract the tarball and run `serve-12gb-mtp.sh`. On the stock PrismML release binary the same line works without the env var, at the +8% row above.
+## Serving notes
 
 VRAM on an RTX 3060 12GB: fat file 10,638 MiB at 131072, 11,726 MiB at 163840 (with `-ctkd q4_0 -ctvd q4_0`); lean file 9,956 MiB at 131072, 11,990 MiB at 196608. Stock ggml-org llama.cpp cannot read PTQ1_0 and produces gibberish on any Bonsai 2 file; use the PrismML fork or the branch above.
 
