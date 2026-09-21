@@ -51,10 +51,12 @@ For the faster decode, build the `pr-ptq1-mmv` branch of github.com/sudoingX/lla
 `cmake -B build -DGGML_CUDA=ON && cmake --build build -j`, then run the same serve line with that binary.
 Builds for sm_86 through sm_120 (the sm_90 and sm_120 host-stub failure at `5883186` is fixed in `2578fdf`).
 
-## Two traps
+## Traps
 
 Stock llama.cpp loads the Q2_0 variant and outputs gibberish, and rejects PTQ1_0 outright; use the fork.
 The file skips 6GB cards, the weights alone are 5.95 GB; on 8GB the 64K line is the one to try.
+
+The GGUF chat template defaults `reasoning_effort` to `xhigh`, which adds a "think carefully" system line; on the 3060 at a 4,096-token client cap that returned nothing on an SVG, an HTML page and a 100-line Python script (6 of 6 greedy runs spent the whole cap inside `<think>`), and the SVG never finished thinking even at 16,384. The serve lines therefore pass `--reasoning-effort medium` (thinking on, no extra line): the same tasks complete in 45 to 124 s with 22 to 2,381 thinking tokens; keep the client `max_tokens` at 8,192 or more for code, since thinking counts against it. Measurement: `kernel/reasoning_effort.md`.
 
 ## Licence
 
