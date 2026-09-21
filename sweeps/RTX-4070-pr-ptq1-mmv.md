@@ -1,4 +1,4 @@
-﻿# Ternary Bonsai 2 27B PTQ1_0, NVIDIA GeForce RTX 4070
+# Ternary Bonsai 2 27B PTQ1_0, NVIDIA GeForce RTX 4070
 
 All numbers are from one NVIDIA GeForce RTX 4070, one session (Sep 20 2026),
 the same node, direct `llama-bench`, q4_0 K/V cache, flash attention on,
