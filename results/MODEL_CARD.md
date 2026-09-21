@@ -46,9 +46,10 @@ RTX 3060 12GB, one slot, thinking off, 131072 context, q4_0 K/V, client-measured
 | #218 kernel branch | off | 39.8 |
 | #218 kernel branch, `GGML_CUDA_BATCH_INVARIANT=1` | draft-mtp, n-max 1 | **50.1** (code 53.2, bash 50.1, prose 41.8) |
 | #218 kernel branch, `GGML_CUDA_BATCH_INVARIANT=1` | draft-mtp, n-max 2 | 45.4 |
-| #218 kernel branch, 41.8K tokens of context | off / n-max 1 / n-max 2 | 16.85 / 22.23 / 26.86 |
+| #218 kernel branch, 41.8K tokens filled | head off / n-max 1 / n-max 2 | 22.23 / 26.86 / 21.08 (release binary, head off: 16.85) |
+| #218 kernel branch, 18K / 39K / 77K / 115K filled | head off → n-max 1 | 29.6 → 33.9 / 22.9 → 27.5 / 16.1 → 18.3 / 12.4 → 13.9 (+12% to +20%; n-max 2 below head off at every one of these depths) |
 
-Draft acceptance on this card: 0.85 to 0.95 on Python, 0.73 to 0.81 on bash, 0.45 to 0.68 on prose, 0.56 to 0.65 at 41.8K tokens of context. The head was trained by Qwen against fp16 hidden states and here it reads a ternary trunk; acceptance is lower than on stock Qwen 3.8 (about 0.70) and still well above break-even.
+Draft acceptance on this card: 0.85 to 0.95 on Python, 0.73 to 0.81 on bash, 0.45 to 0.68 on prose, 0.65 to 0.73 on a long document at 18K to 120K tokens of context, 0.88 on an image prompt with the vision tower loaded. The head was trained by Qwen against fp16 hidden states and here it reads a ternary trunk; acceptance is lower than on stock Qwen 3.8 (about 0.70) and still well above break-even.
 
 `llama-bench` on the same card, original PTQ1_0 file, `-fa 1 -ctk q4_0 -ctv q4_0 -r 3`: tg128 26.32 → 40.54 tok/s, pp512 269.6 → 268.7 tok/s (prefill untouched). Other owners' rows, 8GB through 5070 Ti, are in the repo's `sweeps/` and on the PR threads.
 
@@ -78,7 +79,7 @@ Header changes versus Bonsai 2: `qwen35.block_count` 64 → 65, `qwen35.nextn_pr
 
 VRAM on an RTX 3060 12GB: fat file 10,638 MiB at 131072, 11,726 MiB at 163840 (with `-ctkd q4_0 -ctvd q4_0`); lean file 9,956 MiB at 131072, 11,990 MiB at 196608. Stock ggml-org llama.cpp cannot read PTQ1_0 and produces gibberish on any Bonsai 2 file; use the PrismML fork or the branch above.
 
-Sampling per the base card: thinking `temperature 1.0, top_p 0.95, top_k 20`; instruct `temperature 0.7, top_p 0.8, top_k 20, presence_penalty 1.5`. `--spec-draft-n-max 1` was best on this card at short context and 2 at 41.8K; sweep it on yours.
+Sampling per the base card: thinking `temperature 1.0, top_p 0.95, top_k 20`; instruct `temperature 0.7, top_p 0.8, top_k 20, presence_penalty 1.5`. `--spec-draft-n-max 1` was best on this card at every depth measured, fresh to 120K tokens; n-max 2 only pays on a fresh context and loses to head-off past ~16K. Sweep it on yours.
 
 ## How it was made
 
