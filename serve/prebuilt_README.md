@@ -9,8 +9,9 @@ A self-contained build of the PrismML llama.cpp fork with two changes for Ternar
 - the Hadamard fix for the qwen35 MTP draft graph (pull request 217), which lets the Qwen 3.8 MTP head grafted onto
   the ternary file draft from the trunk's own embedding table.
 
-Source: branch `bonsai2` of github.com/sudoingX/llama.cpp, commit 8971d7b, which is PrismML-Eng/llama.cpp `prism`
-at 9a9394a89 plus the two pull requests. Build: `cmake -DGGML_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES="86;89"
+Source: branch `bonsai2` of github.com/sudoingX/llama.cpp, commit dcc3be7, which is PrismML-Eng/llama.cpp `prism`
+at 9a9394a89 plus the two pull requests, including the review-round commits on 218 (the shared-memory guard budgets the
+real request of the PTQ1_0 mat-vec launch, and the scoped batch-invariance comment). Build: `cmake -DGGML_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES="86;89"
 -DGGML_CUDA_FA=ON -DGGML_CUDA_GRAPHS=ON -DLLAMA_CURL=OFF -DGGML_NATIVE=OFF -DGGML_AVX2=ON -DGGML_FMA=ON
 -DGGML_F16C=ON -DCMAKE_BUILD_TYPE=Release`, CUDA 12.4, GCC 11, Ubuntu 22.04.
 
@@ -26,7 +27,7 @@ at 9a9394a89 plus the two pull requests. Build: `cmake -DGGML_CUDA=ON -DCMAKE_CU
 
 ```
 hf download prism-ml/Ternary-Bonsai-2-27B-gguf Ternary-Bonsai-2-27B-PTQ1_0.gguf --local-dir ~/models/bonsai2-27b
-tar xzf bonsai2-small-gpu-linux-x64-cuda12.4-sm86-sm89-8971d7b.tar.gz && cd bonsai2-small-gpu-linux-x64-cuda12.4-sm86-sm89-8971d7b
+tar xzf bonsai2-small-gpu-linux-x64-cuda12.4-sm86-sm89-dcc3be7.tar.gz && cd bonsai2-small-gpu-linux-x64-cuda12.4-sm86-sm89-dcc3be7
 ./serve-12gb.sh
 ```
 
@@ -43,6 +44,12 @@ too: `MODEL=... ./serve-12gb-mtp.sh` loads at 9,940 MiB at 131072 and at 11,732 
 
 Every script takes `MODEL`, `HOST`, `PORT` and `CTX` from the environment and passes extra arguments through to
 `llama-server`. Set `MODEL=/path/to/file.gguf` if your models live elsewhere.
+
+All three scripts pass `--reasoning-effort medium`. The GGUF chat template defaults `reasoning_effort` to `xhigh`, which adds a
+"think carefully" system line; measured on an RTX 3060 with this build, greedy, a 4,096-token client cap, the default returned nothing on
+an SVG, an HTML page and a 100-line Python script (the whole cap went into `<think>`), and the SVG never finished thinking even at
+16,384 tokens. With `medium` the same tasks complete in 45 to 124 s with 22 to 2,381 thinking tokens. Thinking still counts against
+the client `max_tokens`; use 8,192 or more for code, or pass `--reasoning-effort default` to get the template's behaviour back.
 
 The merged file is the original PTQ1_0 file with the `blk.64` MTP tensors of Qwen3.8-27B appended (byte-exact,
 reversible); the tools that make it are in github.com/sudoingX/bonsai2-small-gpu (`graft/`).
