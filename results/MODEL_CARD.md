@@ -30,10 +30,11 @@ One file: `Ternary-Bonsai-2-27B-PTQ1_0-mtp.gguf` (7.0 GB). It runs on the PrismM
 hf download sudoingx/Ternary-Bonsai-2-27B-PTQ1_0-MTP-GGUF Ternary-Bonsai-2-27B-PTQ1_0-mtp.gguf --local-dir .
 git clone -b bonsai2 https://github.com/sudoingX/llama.cpp && cmake -S llama.cpp -B build -DGGML_CUDA=ON && cmake --build build -j
 GGML_CUDA_BATCH_INVARIANT=1 build/bin/llama-server -m Ternary-Bonsai-2-27B-PTQ1_0-mtp.gguf \
-  -ngl 99 -fa on -c 131072 -np 1 -ctk q4_0 -ctv q4_0 --jinja --spec-type draft-mtp --spec-draft-n-max 1
+  -ngl 99 -fa on -c 131072 -np 1 -ctk q4_0 -ctv q4_0 --jinja \
+  --reasoning-effort medium --spec-type draft-mtp --spec-draft-n-max 1
 ```
 
-No compiler: extract the prebuilt tarball from this repo (Ampere and Ada, driver only) and run `serve-12gb-mtp.sh`. On the stock PrismML release binary the same serve line works without the env var, at the +8% row below.
+No compiler: extract the prebuilt tarball from this repo (Ampere and Ada, driver only) and run `serve-12gb-mtp.sh`, adding `--reasoning-effort medium`: the scripts inside the published tarball predate that measurement, the ones in the repo do not. On the stock PrismML release binary the same serve line works without the env var, at the +8% row below.
 
 ## Numbers
 
@@ -76,6 +77,8 @@ Parents:
 Header changes versus Bonsai 2: `qwen35.block_count` 64 → 65, `qwen35.nextn_predict_layers = 1`, plus `graft.donor.name`, `graft.head_blocks`, `graft.head_tensor_count`, `graft.tool` for provenance. Everything else, the `prism.hadamard.*` keys and the tokenizer included, is byte-identical. Without `--spec-type draft-mtp` the file behaves exactly like Bonsai 2, the head is skipped.
 
 ## Serving notes
+
+**Set `--reasoning-effort medium`.** The GGUF chat template defaults it to `xhigh`, which injects a "think carefully through the task" system line, and on an RTX 3060 at a 4,096-token client cap that returned **nothing at all** on all three build tasks tested: an SVG, a single-file HTML page and a 100-line Python CLI each spent the whole 4,096 tokens thinking and emitted no answer, in 108 seconds. At `medium` the same three completed in 45 to 58 seconds. Raising the cap does not fix it on its own, the SVG was still empty after 16,384 thinking tokens and 477 seconds. Three tasks, two caps, two runs each, every pair identical; the table is in [`kernel/reasoning_effort.md`](https://github.com/sudoingX/bonsai2-small-gpu/blob/main/kernel/reasoning_effort.md). Credit to professorpalmer for flagging the default. Per request it is the OpenAI `reasoning_effort` field; the serve scripts in the repo already pass it.
 
 VRAM on an RTX 3060 12GB: fat file 10,638 MiB at 131072, 11,726 MiB at 163840 (with `-ctkd q4_0 -ctvd q4_0`); lean file 9,956 MiB at 131072, 11,990 MiB at 196608. Stock ggml-org llama.cpp cannot read PTQ1_0 and produces gibberish on any Bonsai 2 file; use the PrismML fork or the branch above.
 
