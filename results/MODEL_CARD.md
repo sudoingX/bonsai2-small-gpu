@@ -7,7 +7,7 @@ library_name: llama.cpp
 pipeline_tag: text-generation
 tags:
 - gguf
-- qwen35
+- qwen3_5
 - ternary
 - ptq1_0
 - mtp
