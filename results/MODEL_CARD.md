@@ -63,11 +63,11 @@ With `GGML_CUDA_BATCH_INVARIANT=1` on the kernel branch, greedy output (temperat
 | file | bytes | needs |
 | --- | ---: | --- |
 | `Ternary-Bonsai-2-27B-PTQ1_0-mtp.gguf`, **the file** | 7,012,820,512 | the PrismML fork, prism-b10685 or later, as released. Carries its own unrotated copy of the token embedding for the head, so `--spec-type draft-mtp` starts without any patch. For the speed above, the kernel branch. |
-| `bonsai2-small-gpu-linux-x64-cuda12.4-sm86-sm89-dcc3be7.tar.gz` | 515,438,079 | nothing but the NVIDIA driver. `llama-server`, `llama-bench`, `llama-cli` built from the `bonsai2` branch (kernel + Hadamard fix), CUDA runtime bundled, serve scripts for 8GB, 12GB and 12GB with the head. Ampere and Ada; Blackwell builds from source. |
+| `bonsai2-small-gpu-linux-x64-cuda12.4-sm86-sm89-285542d.tar.gz` | 514,982,389 | nothing but the NVIDIA driver. `llama-server`, `llama-bench`, `llama-cli` built from the `bonsai2` branch (kernel + Hadamard fix), CUDA runtime bundled, serve scripts for 8GB, 12GB and 12GB with the head. Ampere and Ada; Blackwell builds from source. |
 
 Smaller variant, optional: `Ternary-Bonsai-2-27B-PTQ1_0-mtp-lean.gguf`, 6,297,658,848 bytes, the same graft without the embedding copy, 715 MB smaller (on a 12GB card that is 196K of context instead of 163K). Same output. It needs the 15-line qwen35 MTP Hadamard fix in the build (PrismML-Eng/llama.cpp#217 or #205, or the `bonsai2` branch above); the release binary refuses to start the draft graph on it. Once that fix ships in a PrismML release this becomes the default file.
 
-`SHA256SUMS` in the repo covers all four files; the tarball carries its own `SHA256SUMS` for its 25 files. Tarball facts: NVIDIA driver 525 or newer, glibc 2.35 or newer, AVX2; extracted and run from a clean directory with no toolchain in the environment, identity byte-identical, 48.8 tok/s median; the lean file on the same binaries loads at 9,940 MiB at 131072 and 11,732 MiB at 196608, the fat file does not fit 196608 on 12 GB (the MTP compute buffer needs 1,040 MiB more).
+`SHA256SUMS` in the repo covers all four files; the tarball carries its own `SHA256SUMS` for its 25 files. Tarball facts: NVIDIA driver 525 or newer, glibc 2.35 or newer, AVX2; extracted and run from a clean directory with no toolchain in the environment, identity byte-identical, 48.0 tok/s median, and prompt processing 522.5 tok/s at pp512 against 267.3 on the previous bundle, same card and same session, llama-bench r=3, the gain coming from the PTQ1_0 MMQ tile loader now underneath the branch; the lean file on the same binaries loads at 9,940 MiB at 131072 and 11,732 MiB at 196608, the fat file does not fit 196608 on 12 GB (the MTP compute buffer needs 1,040 MiB more).
 
 Parents:
 

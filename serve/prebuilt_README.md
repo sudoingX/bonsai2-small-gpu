@@ -1,17 +1,20 @@
 # bonsai2-small-gpu, Linux x86-64, CUDA 12.4, sm_86 + sm_89
 
-A self-contained build of the PrismML llama.cpp fork with two changes for Ternary Bonsai 2 27B on consumer cards:
+A self-contained build of the PrismML llama.cpp fork for Ternary Bonsai 2 27B on consumer cards, carrying three things:
 
 - the PTQ1_0 mat-vec kernel for small batches (PrismML-Eng/llama.cpp pull request 218): 1.5x single-token decode
-  on an RTX 3060 12GB, 2 to 8 token verification batches at 1.2x to 1.8x the cost of one token instead of 1.5x to
-  2.9x, and the `GGML_CUDA_BATCH_INVARIANT=1` switch that makes a token's logits bit-identical whether it is decoded
-  alone or inside a batch of up to 4, so speculative decoding is lossless;
-- the Hadamard fix for the qwen35 MTP draft graph (pull request 217), which lets the Qwen 3.8 MTP head grafted onto
-  the ternary file draft from the trunk's own embedding table.
+  on an RTX 3060 12GB, 2 to 4 token verification batches at 1.2x to 1.8x the cost of one token instead of 1.5x to
+  2.8x, and the `GGML_CUDA_BATCH_INVARIANT=1` switch that makes a token's logits bit-identical whether it is decoded
+  alone or inside a batch of up to 4, so speculative decoding is lossless; 5 and more columns take the MMQ tile path;
+- PrismML's pull request 214 (professorpalmer), merged into `prism` and underneath this build: the branch-free PTQ1_0
+  MMQ tile loader and the full Ampere tile table, which lift prompt processing on the RTX 3060 from 269 to 522.5 tok/s
+  (llama-bench pp512, r=3, this bundle's own binary);
+- the Hadamard fix for the qwen35 MTP draft graph, landed in `prism` as pull request 205 (our 217 closed in its favour),
+  which lets the Qwen 3.8 MTP head grafted onto the ternary file draft from the trunk's own embedding table.
 
-Source: branch `bonsai2` of github.com/sudoingX/llama.cpp, commit dcc3be7, which is PrismML-Eng/llama.cpp `prism`
-at 9a9394a89 plus the two pull requests, including the review-round commits on 218 (the shared-memory guard budgets the
-real request of the PTQ1_0 mat-vec launch, and the scoped batch-invariance comment). Build: `cmake -DGGML_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES="86;89"
+Source: branch `bonsai2` of github.com/sudoingX/llama.cpp, commit 285542d: PrismML-Eng/llama.cpp `prism` at bdc23b56b
+(the merge of 214, with 205 already in) plus the ten commits of the `pr-ptq1-mmv` series (the kernel, the invariance
+switch, the review-round fixes and the cap at 4 columns). Build: `cmake -DGGML_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES="86;89"
 -DGGML_CUDA_FA=ON -DGGML_CUDA_GRAPHS=ON -DLLAMA_CURL=OFF -DGGML_NATIVE=OFF -DGGML_AVX2=ON -DGGML_FMA=ON
 -DGGML_F16C=ON -DCMAKE_BUILD_TYPE=Release`, CUDA 12.4, GCC 11, Ubuntu 22.04.
 
@@ -27,7 +30,7 @@ real request of the PTQ1_0 mat-vec launch, and the scoped batch-invariance comme
 
 ```
 hf download prism-ml/Ternary-Bonsai-2-27B-gguf Ternary-Bonsai-2-27B-PTQ1_0.gguf --local-dir ~/models/bonsai2-27b
-tar xzf bonsai2-small-gpu-linux-x64-cuda12.4-sm86-sm89-dcc3be7.tar.gz && cd bonsai2-small-gpu-linux-x64-cuda12.4-sm86-sm89-dcc3be7
+tar xzf bonsai2-small-gpu-linux-x64-cuda12.4-sm86-sm89-285542d.tar.gz && cd bonsai2-small-gpu-linux-x64-cuda12.4-sm86-sm89-285542d
 ./serve-12gb.sh
 ```
 
@@ -35,8 +38,8 @@ Then talk to `http://127.0.0.1:8899` (OpenAI-compatible, `/v1/chat/completions`,
 
 | script | file | context | VRAM after load (nvidia-smi, RTX 3060 12GB) | measured on the RTX 3060 12GB |
 | --- | --- | --- | --- | --- |
-| `serve-12gb.sh` | `Ternary-Bonsai-2-27B-PTQ1_0.gguf` (original) | 262144 | 11,682 MiB | llama-bench tg128 40.4 tok/s fresh, 30.8 at 16K depth, 17.8 at 64K, 11.4 at 128K; pp512 267 |
-| `serve-12gb-mtp.sh` | `Ternary-Bonsai-2-27B-PTQ1_0-mtp.gguf` (merged, with the MTP head) | 131072 | 10,622 MiB | 49.1 tok/s median over a code, a prose and a bash prompt (52.5 / 43.4 / 49.1), greedy output byte-identical to the same build without the head |
+| `serve-12gb.sh` | `Ternary-Bonsai-2-27B-PTQ1_0.gguf` (original) | 262144 | 11,682 MiB | llama-bench tg128 40.4 tok/s fresh (30.8 at 16K depth, 17.8 at 64K, 11.4 at 128K on the previous build), pp512 522.5 tok/s |
+| `serve-12gb-mtp.sh` | `Ternary-Bonsai-2-27B-PTQ1_0-mtp.gguf` (merged, with the MTP head) | 131072 | 10,622 MiB | 47.9 tok/s median over a code, a prose and a bash prompt (53.0 / 43.7 / 47.9), greedy output byte-identical to the same build without the head |
 | `serve-8gb.sh` | `Ternary-Bonsai-2-27B-PTQ1_0.gguf` (original) | 98304 | 8,002 MiB | needs the whole card; on an 8 GB card that also drives a display run it with `CTX=65536` (7,266 MiB) |
 
 The lean merged file (`Ternary-Bonsai-2-27B-PTQ1_0-mtp-lean.gguf`, no duplicate embedding table) runs with `serve-12gb-mtp.sh`
