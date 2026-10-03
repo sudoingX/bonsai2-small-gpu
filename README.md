@@ -23,8 +23,11 @@ driver only, no compiler. Find your card, take its bundle and script:
 | RTX 5060 Ti 16GB, 5070 Ti, 5080, 5090 | 16 to 32 GB | cuda12.8 sm120 | `serve-16gb-mtp-vision.sh` | the MTP head, vision and the full 262K |
 
 Laptop GPUs: the same series, go by your VRAM. Measured so far: RTX 3060 12GB, RTX 3060 Ti 8GB, RTX 4070 12GB (a
-contributor) and RTX 5060 Ti 16GB (`sweeps/`); the other rows follow from the same VRAM numbers. Run it on yours and
-open a PR with your row.
+contributor), RTX 5060 Ti 16GB and the RTX 3000 Ada Laptop 8GB (a contributor); the other rows follow from the same VRAM
+numbers. The Ada Laptop is the case to read before expecting the kernel's gains: on a bandwidth-bound laptop part the
+PTQ1_0 mat-vec is worth about +7% decode on `bdc23b56b`, while the current PrismML `prism` branch (post-#221) adds +6 to
++15% prefill and, with the lean (no-embed) MTP file, moves the lossless MTP window from 64K to 88064
+(`sweeps/rtx3000Ada-8gb.md`, measured on AC; ~15-20% slower on battery, same window). Run it on yours and open a PR with your row.
 
 RTX 5060 Ti 16GB (any 16GB or bigger RTX 50), four commands:
 

@@ -60,6 +60,13 @@ no extra Python packages are needed for the graft itself. About 25 GB of disk.
    off: 25.0 tok/s flag off, 27.1 tok/s with n-max 1 (code 29.5, prose 23.6,
    bash 27.1), draft acceptance 0.5 (prose) to 0.95 (code).
 
+   Do NOT use this fat file on an 8 GB card. Its 682 MiB
+   blk.64.nextn.embed_tokens.weight exists only for forks without the Hadamard
+   fix; on an 8 GB card it pushes the GPU past capacity and decode collapses
+   (11.9 vs 33.5 tok/s on an RTX 3000 Ada Laptop 8GB, same session). Use the
+   lean file from step 6 there, at a 64K window; see
+   ../sweeps/rtx3000Ada-8gb.md.
+
 5. Check identity before trusting the speed.
 
    python3 tools/verify_identity.py run http://127.0.0.1:8899 results/identity on
@@ -77,6 +84,21 @@ no extra Python packages are needed for the graft itself. About 25 GB of disk.
    python3 tools/extract_head.py Qwen3.8-27B-UD-Q4_K_M.gguf head-lean.gguf --no-embed-tokens
    python3 tools/merge.py Ternary-Bonsai-2-27B-PTQ1_0.gguf head-lean.gguf Ternary-Bonsai-2-27B-PTQ1_0-mtp-lean.gguf
    (6,297,658,848 bytes, 866 tensors, sha256 1e33c571a5ce7a9a3e42474d66192923d5a6d77da7fb3a22986dc809522b5685)
+
+   This is the file to use on an 8 GB card: it has no duplicate embedding
+   table, so the head reads the trunk's own token_embd through the Hadamard
+   fix. On an RTX 3000 Ada Laptop 8GB at a 65536 window with
+   GGML_CUDA_BATCH_INVARIANT=1, --spec-type draft-mtp --spec-draft-n-max 2
+   runs at 33.5 tok/s median against 25.9 for the flag off, greedy output
+   byte-identical, where the fat file of step 3 runs at 11.9 (it spills).
+   n-max 1 is 31.0 and n-max 2 is the pick here, unlike the 12 GB card.
+   A 73728 window also works and is stable (30.0 tok/s median, lossless, a
+   1,500-token generation completes without OOM); on that bundle 81920 and
+   above do not. On the current PrismML `prism` branch (`f13265492`,
+   post-#221) the window reaches 88064 at no loss against 64K (36.1 median,
+   lossless, +33% over the 27.1 base); the cliff is 89088, and the
+   GGML_CUDA_BATCH_INVARIANT switch costs about 12% there. On battery the
+   same window is about 15-20% slower and the cliff does not move.
 
    The prebuilt fork refuses it: "Hadamard-latent table 'token_embd.weight' is
    read without the inverse transform". Apply results/0001-qwen35-mtp-hadamard-inverse.patch
