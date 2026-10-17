@@ -155,9 +155,19 @@ if ($Mode -eq 'start') {
     Write-Host "API for agents:  http://127.0.0.1:$port/v1  (OpenAI compatible, model $alias, any API key unless you set BONSAI_API_KEY)"
     Write-Host 'Close this window to stop it.'
     Write-Host ''
-    $poll = "for(`$i=0;`$i -lt 900;`$i++){try{`$null=Invoke-WebRequest -UseBasicParsing -TimeoutSec 2 http://127.0.0.1:$port/health;Start-Process http://127.0.0.1:$port;break}catch{Start-Sleep 1}}"
-    $enc = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($poll))
-    Start-Process powershell -WindowStyle Hidden -ArgumentList "-NoProfile -EncodedCommand $enc"
+    $poll = {
+        param($p)
+        for ($i = 0; $i -lt 900; $i++) {
+            try {
+                $null = Invoke-WebRequest -UseBasicParsing -TimeoutSec 2 "http://127.0.0.1:$p/health"
+                Start-Process "http://127.0.0.1:$p"
+                break
+            } catch { Start-Sleep 1 }
+        }
+    }
+    # open the chat page in the browser once the server is up: a background runspace in this same process,
+    # not a hidden powershell child (Windows Defender flags hidden child shells as Trojan:Win32/Commando.A!ml)
+    $null = [powershell]::Create().AddScript($poll).AddArgument($port).BeginInvoke()
     $ErrorActionPreference = 'Continue'
     $a = Get-ServerArgs $port $true $true
     & $exe @a
